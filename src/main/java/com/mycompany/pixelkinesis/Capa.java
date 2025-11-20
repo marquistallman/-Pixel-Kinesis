@@ -17,6 +17,11 @@ public class Capa extends Nodo {
     public void agregarNodo(Nodo n) {
         hijos.add(n);
     }
+    public void limpiar() {
+        if (hijos != null) {
+            hijos.clear();
+        }
+    }    
     @Override
     public void ejecutar(Graphics2D g) {
         // Una capa solo ejecuta sus hijos
