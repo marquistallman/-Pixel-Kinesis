@@ -92,8 +92,21 @@ public class ComandoDibujar extends Comando {
         Color prev = g.getColor();
         g.setColor(nodo.area.frente.color);
 
-        Shape shape = forma.getBounds();
-        g.fill(shape);
+        Shape shape = forma.getShape();
+
+            if (shape instanceof java.awt.geom.Line2D ||
+                shape instanceof java.awt.geom.QuadCurve2D ||
+                    shape instanceof java.awt.geom.CubicCurve2D) {
+
+            // Las líneas y curvas NO tienen área → se dibujan con draw()
+            g.draw(shape);
+
+            } else {
+
+            // Figuras con área → se dibujan con fill()
+            g.fill(shape);
+            }
+
 
         g.setColor(prev);
 

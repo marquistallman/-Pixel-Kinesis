@@ -14,7 +14,9 @@ public class Forma {
     public boolean contiene(double x, double y) {
         return shape.contains(x, y);
     }
-
+    public Shape getShape() {  // <--- ESTE
+        return shape;
+    }
     public Shape getBounds() {
         return shape.getBounds2D();
     }
