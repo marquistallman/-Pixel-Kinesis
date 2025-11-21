@@ -31,32 +31,28 @@ public class ComandoDibujar extends Comando {
 
         if (esFigura) {
             FiguraGeometrica fig = (FiguraGeometrica) nodo;
-
-            // Si ya tiene forma, la usamos
-            if (fig.forma != null) {
+        
+            // Usar SIEMPRE la forma ya existente
+            if (fig.forma != null && fig.forma.shape != null) {
                 forma = fig.forma;
             } else {
-                // Forma por defecto 100x100 en la posición del nodo
-                Point pos = new Point(0, 0);
-                if (nodo.area != null && nodo.area.getPosicion() != null) {
-                    pos = nodo.area.getPosicion();
-                }
-
+                // Crear forma inicial SOLO si no existe
+                Point pos = (nodo.area != null && nodo.area.getPosicion() != null)
+                           ? nodo.area.getPosicion()
+                           : new Point(0, 0);
+        
                 forma = new Forma(new Rectangle2D.Double(pos.x, pos.y, 100, 100));
-
                 fig.forma = forma;
             }
         }
+        
 
         // ============================================
         // 3. CREAR EL ÁREA DE INFLUENCIA SEGÚN LA FORMA
         // ============================================
         if (nodo.area == null) {
             nodo.area = new AreaDeInfluencia(forma);
-        } else {
-            nodo.area.forma = forma;
         }
-
         // ============================================
         // 4. CREAR FONDO DEFAULT (transparente)
         // ============================================

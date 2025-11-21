@@ -59,29 +59,57 @@ public class VentanaEditor extends JFrame {
         String texto = panelConsola.consolaEntrada.getText();
         String[] lineas = texto.split("\n");
     
+        String comandoCrear = null;
+        ArrayList<String> paramsCrear = null;
+        ArrayList<Comando> comandosNodo = new ArrayList<>();
+    
         for (String linea : lineas) {
             linea = linea.trim();
             if (linea.isEmpty()) continue;
     
-            String[] partes = linea.split(" ");
-            String comando = partes[0];
-            ArrayList<String> params = new ArrayList<>();
-            for (int i = 1; i < partes.length; i++) {
-                params.add(partes[i]);
+            if (linea.startsWith("-")) {
+                // Línea de modificación → convertir en Comando y añadir al nodo actual
+                String comandoLinea = linea.substring(1).trim();
+                String[] partes = comandoLinea.split(" ");
+                String cmdTexto = partes[0];
+    
+                ArrayList<String> parametros = new ArrayList<>();
+                for (int i = 1; i < partes.length; i++) parametros.add(partes[i]);
+    
+                Comando cmd = Compiler.comando(cmdTexto, parametros);
+                comandosNodo.add(cmd);
+    
+            } else {
+                // Nueva creación → si había un nodo anterior, lo agregamos a la capa
+                if (comandoCrear != null) {
+                    agregarNodo(comandoCrear, paramsCrear, comandosNodo);
+                }
+    
+                // Preparamos el nuevo nodo
+                String[] partes = linea.split(" ");
+                comandoCrear = partes[0];
+                paramsCrear = new ArrayList<>();
+                for (int i = 1; i < partes.length; i++) paramsCrear.add(partes[i]);
+    
+                comandosNodo = new ArrayList<>();
+                comandosNodo.add(new ComandoDibujar()); // siempre dibujar
             }
+        }
     
-            // Crear nodo usando tu Compiler
-            Forma forma = Compiler.forma(comando, params);
-            AreaDeInfluencia area = new AreaDeInfluencia(forma);
-            ArrayList<Comando> comandosNodo = new ArrayList<>();
-            comandosNodo.add(new ComandoDibujar());
-            FiguraGeometrica nodo = new FiguraGeometrica(forma, area, comandosNodo);
-    
-            // Agregar a la capa del panel de dibujo
-            capa.agregarNodo(nodo);
+        // Agregar el último nodo
+        if (comandoCrear != null) {
+            agregarNodo(comandoCrear, paramsCrear, comandosNodo);
         }
     
         panelDibujo.repaint();
+    }
+    
+    // Método auxiliar para crear y añadir un nodo
+    private void agregarNodo(String comandoCrear, ArrayList<String> paramsCrear, ArrayList<Comando> comandosNodo) {
+        Forma forma = Compiler.forma(comandoCrear, paramsCrear);
+        AreaDeInfluencia area = new AreaDeInfluencia(forma);
+        FiguraGeometrica nodo = new FiguraGeometrica(forma, area, comandosNodo);
+        capa.agregarNodo(nodo);
     }    
 }
 

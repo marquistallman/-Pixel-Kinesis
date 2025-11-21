@@ -1,8 +1,9 @@
 package com.mycompany.pixelkinesis;
 import java.util.ArrayList;
 import java.awt.Point;
-import java.awt.Shape;
+import java.awt.*;
 import java.awt.geom.*;
+import com.mycompany.pixelkinesis.comandos.*;
 public class Compiler {
     private ArrayList<Forma>formas=new ArrayList<Forma>();
     Compiler(Point centerPoint, Point sizePoint ){
@@ -120,5 +121,30 @@ public class Compiler {
             default:
                 throw new IllegalArgumentException("Comando no reconocido: " + comandoInputs);
         }
-    }            
+    }
+    public static Comando comando(String comandoInput, ArrayList<String> params) {
+        switch (comandoInput) {
+    
+            case "dibujar":
+                return new ComandoDibujar();
+    
+            case "color":
+                // params[0] = "R,G,B"
+                String[] rgb = params.get(0).split(",");
+                int r = Integer.parseInt(rgb[0]);
+                int g = Integer.parseInt(rgb[1]);
+                int b = Integer.parseInt(rgb[2]);
+                return new ComandoCambiarColor(new Color(r, g, b));
+    
+            case "mover":
+                // params[0] = dx, params[1] = dy
+                int dx = Integer.parseInt(params.get(0));
+                int dy = Integer.parseInt(params.get(1));
+                return new ComandoMover(new Point(dx,dy));
+    
+            // aquí puedes añadir más comandos según necesites
+            default:
+                throw new IllegalArgumentException("Comando no reconocido: " + comandoInput);
+        }
+    }                
 }
