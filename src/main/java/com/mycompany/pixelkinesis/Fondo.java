@@ -1,5 +1,6 @@
 package com.mycompany.pixelkinesis;
 import java.awt.Color;
+import java.awt.*;
 public class Fondo {
     public Color color;
     public float opacidad; // 0.0f = totalmente transparente, 1.0f = opaco
@@ -30,4 +31,16 @@ public class Fondo {
         int alpha = (int) (opacidad * 255);
         return new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha);
     }
+    public void aplicar(Graphics2D g, AreaDeInfluencia areaentrada) {
+        if (areaentrada == null) return;
+        Rectangle area = areaentrada.forma.getShape().getBounds();
+        Color prev = g.getColor();
+        g.setColor(getColorConOpacidad());
+    
+        // El fondo es un rectángulo del tamaño del área
+        g.fillRect(area.x, area.y, area.width, area.height);
+    
+        g.setColor(prev);
+    }
+    
 }

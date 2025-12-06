@@ -30,7 +30,10 @@ public class FiguraGeometrica extends Nodo {
 
         // ejecutar los comandos (Nodo.ejecutar(g) hace esto), pero si quieres:
         for (Comando c : comandos) {
-            c.ejecutar(this, g);
+            // Verificar que el comando no sea null antes de ejecutarlo
+            if (c != null) {
+                c.ejecutar(this, g);
+            }
         }
 
         // ejemplo: lógica posterior (opcional)

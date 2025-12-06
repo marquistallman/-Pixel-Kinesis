@@ -4,13 +4,16 @@ import java.awt.geom.*;
 import com.mycompany.pixelkinesis.*;
 import java.util.ArrayList;
 import java.awt.*;
+import com.mycompany.pixelkinesis.UI.*;
 import java.awt.geom.AffineTransform;
 
 public class ComandoMover extends Comando {
 
     private final Point destino;
 
-    // No hacemos repaint desde aquí: que lo haga la UI con panelDibujo.repaint()
+    // Callback global para pedir repaint
+    public static Runnable refrescarUI = null;
+
     public ComandoMover(Point destino) {
         this.destino = destino;
     }
@@ -19,62 +22,57 @@ public class ComandoMover extends Comando {
     public void ejecutar(Nodo nodo, Graphics2D g) {
         if (nodo == null) return;
 
-        // POSICIÓN ACTUAL - segura
-        Point posActual = new Point(0,0);
+        // ====================================
+        // POSICIÓN ACTUAL
+        // ====================================
+        Point posActual = new Point(0, 0);
         if (nodo.area != null && nodo.area.getPosicion() != null) {
             posActual = nodo.area.getPosicion();
         }
 
-        // calcular desplazamiento
+        // ====================================
+        // CALCULAR DX, DY  (corregido)
+        // ====================================
         int dx = destino.x - posActual.x;
         int dy = destino.y - posActual.y;
 
-        // =======================
-        // 1) actualizar area.posicion
-        // =======================
+        // ====================================
+        // 1) ACTUALIZAR SOLO LA POSICIÓN
+        // ====================================
         if (nodo.area != null) {
             nodo.area.setPosicion(new Point(destino.x, destino.y));
         }
 
-        // =======================
-        // 2) actualizar la shape real de la figura (si existe)
-        // =======================
-        if (nodo instanceof FiguraGeometrica) {
-            FiguraGeometrica fig = (FiguraGeometrica) nodo;
+        // ====================================
+        // 2) MOVER LOS HIJOS SI ES CAPA
+        // ====================================
+        if (nodo instanceof Capa capa && capa.hijos != null) {
 
-            if (fig.forma != null && fig.forma.getShape() != null) {
-                AffineTransform at = AffineTransform.getTranslateInstance(dx, dy);
-                fig.forma.shape = at.createTransformedShape(fig.forma.getShape());
-            }
+            for (Nodo child : capa.hijos) {
 
-            // SINCRONIZAR: asegurar que area.forma apunte a la misma instancia
-            if (nodo.area != null) {
-                nodo.area.forma = fig.forma;
-            }
-        }
-
-        // =======================
-        // 3) mover hijos (si es capa) — hacerlo robusto y no crear shapes nuevas
-        // =======================
-        if (nodo instanceof Capa) {
-            Capa capa = (Capa) nodo;
-            if (capa.hijos != null) {
-                for (Nodo child : capa.hijos) {
-                    // si el hijo tiene posicion, lo actualizamos de forma relativa
-                    Point childPos = (child.area != null && child.area.getPosicion() != null)
-                                     ? child.area.getPosicion()
-                                     : new Point(0,0);
-                    Point nuevo = new Point(childPos.x + dx, childPos.y + dy);
-                    // reusar el mismo comando para mover al hijo
-                    new ComandoMover(nuevo).ejecutar(child, g);
+                Point posChild = new Point(0, 0);
+                if (child.area != null && child.area.getPosicion() != null) {
+                    posChild = child.area.getPosicion();
                 }
+
+                // aplicar desplazamiento relativo
+                Point nuevo = new Point(posChild.x + dx, posChild.y + dy);
+
+                new ComandoMover(nuevo).ejecutar(child, g);
             }
         }
 
-        // NOTA: no llamamos a reload.ejecutar(nodo,g) ni a g.draw aquí.
-        // Es más seguro que la UI haga panelDibujo.repaint() después de ejecutar todo el lote.
+        // ====================================
+        // 3) FORZAR REPAINT
+        // ====================================
+        if (refrescarUI != null) {
+            refrescarUI.run();
+        }
     }
 }
+
+
+
 
 
 

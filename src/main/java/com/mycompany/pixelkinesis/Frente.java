@@ -64,4 +64,7 @@ public class Frente {
         // Restaurar color previo
         g.setColor(previo);
     }
+    public void aplicar(Graphics2D g) {
+        draw(g);
+    }    
 }

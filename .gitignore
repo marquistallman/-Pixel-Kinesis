@@ -1,0 +1,45 @@
+﻿# ============================================
+# ARCHIVOS GENERADOS / AUTOMATIZADOS
+# ============================================
+output/
+*.puml
+*.png
+*.jpg
+*.svg
+
+# ============================================
+# NETBEANS / JAVA
+# ============================================
+/nbproject/private/
+/build/
+/dist/
+/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# ============================================
+# SISTEMA / IDEs
+# ============================================
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.temp
+
+# ============================================
+# CONFIGURACIONES LOCALES
+# ============================================
+*.properties
+*.settings
+.project
+.classpath
+.settings/
+
+# ============================================
+# DEPENDENCIAS / LIBRERÍAS
+# ============================================
+/lib/
+/libs/
+dependencies/
