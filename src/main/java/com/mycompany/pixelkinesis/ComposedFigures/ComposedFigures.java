@@ -19,13 +19,26 @@ public class ComposedFigures extends FiguraGeometrica {
         // Crear área que abarque todas las figuras internas
         this.area = calcularAreaCompuesta();
 
-        // Crear forma rectangular que envuelve todo
+        // Crear forma rectangular que envuelve todo (relativa a 0,0)
         this.forma = new Forma(new Rectangle(
-                area.getPosicion().x,
-                area.getPosicion().y,
-                (int) area.forma.getBounds().getBounds().getWidth(),
-                (int) area.forma.getBounds().getBounds().getHeight()
+            0,
+            0,
+            (int) area.forma.getBounds().getBounds().getWidth(),
+            (int) area.forma.getBounds().getBounds().getHeight()
         ));
+
+        // Inicializar fondo y frente de área compuesta (similar a ComandoDibujar)
+        if (this.area.fondo == null) {
+            this.area.fondo = new Fondo(new Color(0,0,0,0), 0.0f);
+        }
+
+        if (this.area.frente == null) {
+            ArrayList<Nodo> lista = new ArrayList<>();
+            for (FiguraGeometrica f : figuras) lista.add(f);
+            this.area.frente = new Frente(lista);
+            this.area.frente.setColor(Color.GRAY);
+            this.area.frente.setOpacidad(1.0f);
+        }
     }
 
     // ======================================================
@@ -37,12 +50,17 @@ public class ComposedFigures extends FiguraGeometrica {
 
         for (FiguraGeometrica f : figuras) {
             Rectangle r = f.forma.getShape().getBounds();
+            java.awt.Point pos = new java.awt.Point(0, 0);
+            if (f.area != null && f.area.getPosicion() != null) pos = f.area.getPosicion();
 
-            minX = Math.min(minX, r.x);
-            minY = Math.min(minY, r.y);
+            int absX = r.x + pos.x;
+            int absY = r.y + pos.y;
 
-            maxX = Math.max(maxX, r.x + r.width);
-            maxY = Math.max(maxY, r.y + r.height);
+            minX = Math.min(minX, absX);
+            minY = Math.min(minY, absY);
+
+            maxX = Math.max(maxX, absX + r.width);
+            maxY = Math.max(maxY, absY + r.height);
         }
 
         int ancho = maxX - minX;
@@ -93,6 +111,16 @@ public class ComposedFigures extends FiguraGeometrica {
     public void addFigura(FiguraGeometrica f) {
         figuras.add(f);
         this.area = calcularAreaCompuesta();  // recalcular área global
+    }
+
+    // Permitir acceso a las figuras internas para operaciones externas (ej. mover)
+    public ArrayList<FiguraGeometrica> getFiguras() {
+        return figuras;
+    }
+
+    // Forzar el recálculo del área compuesta después de cambios en las figuras internas
+    public void recalcularArea() {
+        this.area = calcularAreaCompuesta();
     }
 }
 

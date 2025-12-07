@@ -5,7 +5,8 @@ import com.mycompany.pixelkinesis.*;
 import java.util.ArrayList;
 import java.awt.*;
 import com.mycompany.pixelkinesis.UI.*;
-import java.awt.geom.AffineTransform;
+import com.mycompany.pixelkinesis.ComposedFigures.ComposedFigures;
+
 
 public class ComandoMover extends Comando {
 
@@ -60,6 +61,27 @@ public class ComandoMover extends Comando {
 
                 new ComandoMover(nuevo).ejecutar(child, g);
             }
+        }
+
+        // ====================================
+        // 2.b) Si es ComposedFigures, mover sus figuras internas
+        // ====================================
+        if (nodo instanceof ComposedFigures composed && composed.getFiguras() != null) {
+            for (FiguraGeometrica child : composed.getFiguras()) {
+
+                Point posChild = new Point(0, 0);
+                if (child.area != null && child.area.getPosicion() != null) {
+                    posChild = child.area.getPosicion();
+                }
+
+                // aplicar desplazamiento relativo
+                Point nuevo = new Point(posChild.x + dx, posChild.y + dy);
+
+                new ComandoMover(nuevo).ejecutar(child, g);
+            }
+
+            // Recalcular el área compuesta ahora que se movieron las internas
+            composed.recalcularArea();
         }
 
         // ====================================

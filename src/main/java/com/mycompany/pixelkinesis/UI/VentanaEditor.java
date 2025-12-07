@@ -61,264 +61,249 @@ public class VentanaEditor extends JFrame {
         System.out.println("═══════════════════════════════════════");
         System.out.println("🚀 INICIANDO ejecutarComandos()");
         System.out.println("═══════════════════════════════════════");
-        
+
         capa.limpiar();
         String texto = panelConsola.consolaEntrada.getText();
         System.out.println("📝 Texto recibido (" + texto.split("\n").length + " líneas):");
         System.out.println(texto);
         System.out.println("───────────────────────────────────────");
-        
+
         String[] lineas = texto.split("\n");
-    
         Nodo ultimoNodoCreado = null;
-    
-        // ---- FLAGS ----
-        boolean enComposed = false;
-    
-        // ---- BUFFERS ----
-        ArrayList<FiguraGeometrica> bufferComposed = new ArrayList<>();
-        ArrayList<Comando> bufferAnimate = new ArrayList<>();
-    
-    
-        // ============================================================
-        // RECORRER LÍNEAS
-        // ============================================================
+
         int i = 0;
         while (i < lineas.length) {
             String raw = lineas[i];
             String linea = raw.trim();
-            
+
             if (linea.isEmpty()) {
                 i++;
                 continue;
             }
-    
-    
-            // ============================================================
-            // BLOQUE COMPOSED
-            // ============================================================
+
             if (linea.equalsIgnoreCase("_Composed")) {
-                enComposed = true;
-                bufferComposed = new ArrayList<>();
+                int next = handleComposed(lineas, i);
+                i = next;
+                if (this.lastBlockCreated != null) { ultimoNodoCreado = this.lastBlockCreated; this.lastBlockCreated = null; }
+                continue;
+            }
+
+            if (linea.equalsIgnoreCase("-animate")) {
+                int next = handleAnimate(lineas, i, ultimoNodoCreado);
+                i = next;
+                continue;
+            }
+
+            if (linea.startsWith("-")) {
+                if (ultimoNodoCreado == null) { i++; continue; }
+                handleNormalCommand(ultimoNodoCreado, linea);
                 i++;
                 continue;
             }
-    
-            if (linea.equalsIgnoreCase("_ComposedEnd")) {
-    
-                enComposed = false;
-    
+
+            // creación normal de figura
+            FiguraGeometrica fig = createFiguraFromLine(linea);
+            if (fig != null) {
+                capa.agregarNodo(fig);
+                ultimoNodoCreado = fig;
+            }
+            i++;
+        }
+
+        panelDibujo.repaint();
+    }    
+
+    // ------------------------------ HELPERS ------------------------------
+    private Nodo lastBlockCreated = null; // usado para comunicar el nodo creado por un bloque sin crear clases nuevas
+
+    private int handleComposed(String[] lineas, int startIndex) {
+        System.out.println("🎨 Bloque _Composed iniciado");
+        ArrayList<FiguraGeometrica> bufferComposed = new ArrayList<>();
+        FiguraGeometrica ultimoInterno = null;
+
+        int i = startIndex + 1;
+        while (i < lineas.length) {
+            String lineaComposed = lineas[i].trim();
+            if (lineaComposed.equalsIgnoreCase("_ComposedEnd")) {
+                System.out.println("🏁 Bloque _ComposedEnd detectado");
                 if (!bufferComposed.isEmpty()) {
                     ComposedFigures comp = CompilerComposed.crearFiguraCompuesta(bufferComposed);
                     capa.agregarNodo(comp);
-                    ultimoNodoCreado = comp;
-                }
-    
-                i++;
-                continue;
-            }
-    
-    
-            if (enComposed) {
-                // SOLO se permiten líneas de creación de figuras
-                if (linea.startsWith("-")) {
-                    i++;
-                    continue;
-                }
-    
-                String[] partes = linea.split(" ");
-                String tipo = partes[0];
-    
-                ArrayList<String> params = new ArrayList<>();
-                for (int j = 1; j < partes.length; j++)
-                    params.add(partes[j]);
-    
-                Forma forma = Compiler.forma(tipo, params);
-                AreaDeInfluencia area = new AreaDeInfluencia(forma);
-    
-                ArrayList<Comando> cmds = new ArrayList<>();
-                cmds.add(new com.mycompany.pixelkinesis.comandos.ComandoDibujar());
-    
-                FiguraGeometrica fig = new FiguraGeometrica(forma, area, cmds);
-                bufferComposed.add(fig);
-    
-                i++;
-                continue;
-            }
-    
-    
-            // ============================================================
-            // BLOQUE ANIMATE
-            // ============================================================
-            if (linea.equalsIgnoreCase("-animate")) {
-                System.out.println("🎬 Bloque -animate iniciado");
-                bufferAnimate = new ArrayList<>();
-                
-                // Procesar todas las líneas hasta encontrar -animate end o -animateEnd
-                i++; // Avanzar a la siguiente línea
-                while (i < lineas.length) {
-                    String rawAnimate = lineas[i];
-                    String lineaAnimate = rawAnimate.trim();
-                    
-                    // Verificar si es el cierre del bloque
-                    if (lineaAnimate.equalsIgnoreCase("-animateEnd") || lineaAnimate.equalsIgnoreCase("-animate end")) {
-                        System.out.println("🏁 Bloque -animateEnd detectado");
-                        
-                        if (ultimoNodoCreado == null) {
-                            System.err.println("❌ Error: No hay nodo creado para agregar animaciones");
-                        } else if (bufferAnimate.isEmpty()) {
-                            System.err.println("⚠ Advertencia: El buffer de animaciones está vacío");
-                        } else {
-                            // agregar todos los comandos del bloque al nodo
-                            System.out.println("📦 Agregando " + bufferAnimate.size() + " comandos al nodo");
-                            ultimoNodoCreado.comandos.addAll(bufferAnimate);
-                            
-                            // Ejecutar las animaciones inmediatamente (solo las de tipo Animate)
-                            int animacionesEjecutadas = 0;
-                            for (Comando cmd : bufferAnimate) {
-                                System.out.println("🔍 Revisando comando: " + cmd.getClass().getSimpleName() + " (es Animate? " + (cmd instanceof Animate) + ")");
-                                if (cmd instanceof Animate) {
-                                    System.out.println("🎬 Ejecutando animación: " + cmd.getClass().getSimpleName());
-                                    // Ejecutar la animación inmediatamente con Graphics2D null
-                                    // (las animaciones no lo necesitan para iniciar el Timer)
-                                    cmd.ejecutar(ultimoNodoCreado, null);
-                                    animacionesEjecutadas++;
-                                }
-                            }
-                            System.out.println("✅ Se ejecutaron " + animacionesEjecutadas + " animaciones de " + bufferAnimate.size() + " comandos totales");
-                        }
-                        
-                        i++; // Avanzar después del cierre
-                        break; // Salir del while
-                    }
-                    
-                    // Si la línea está vacía, continuar
-                    if (lineaAnimate.isEmpty()) {
-                        i++;
-                        continue;
-                    }
-                    
-                    // Dentro de animate SOLO se aceptan líneas que inician con "-"
-                    if (!lineaAnimate.startsWith("-")) {
-                        System.out.println("⚠ Línea ignorada en bloque animate (no empieza con -): " + lineaAnimate);
-                        i++;
-                        continue;
-                    }
-    
-                    String cmdLine = lineaAnimate.substring(1).trim();
-                    String[] partes = cmdLine.split(" ");
-                    String nombre = partes[0];
-    
-                    ArrayList<String> params = new ArrayList<>();
-                    for (int j = 1; j < partes.length; j++)
-                        params.add(partes[j]);
-    
-                    // Si el comando es "mover" dentro del bloque animate, convertirlo a "animate mover"
-                    if (nombre.equalsIgnoreCase("mover")) {
-                        System.out.println("🔄 Convirtiendo 'mover' a 'animate mover' dentro del bloque animate");
-                        nombre = "animate";
-                        // Agregar "mover" como primer parámetro
-                        params.add(0, "mover");
-                    }
-    
-                    System.out.println("🔧 Procesando comando en bloque animate: nombre='" + nombre + "', params=" + params);
-                    
-                    // Procesar parámetros con comas (ej: "100,100" -> ["100", "100"])
-                    ArrayList<String> paramsProcesados = new ArrayList<>();
-                    for (String param : params) {
-                        if (param.contains(",")) {
-                            // Dividir por comas y agregar cada parte
-                            String[] partesComa = param.split(",");
-                            for (String parte : partesComa) {
-                                String trimed = parte.trim();
-                                if (!trimed.isEmpty()) {
-                                    paramsProcesados.add(trimed);
-                                }
-                            }
-                        } else {
-                            paramsProcesados.add(param.trim());
-                        }
-                    }
-                    
-                    System.out.println("🔧 Parámetros procesados: " + paramsProcesados);
-                    
-                    // ⚡ AQUI SÍ → el compiler crea el comando correcto (Mover, AnimateMover, lo que sea)
-                    Comando c = Compiler.comando(nombre, paramsProcesados);
-
-                    // Verificar que el comando no sea null antes de agregarlo
-                    if (c != null) {
-                        bufferAnimate.add(c);
-                        System.out.println("✅ Comando agregado al buffer: " + c.getClass().getSimpleName());
-                    } else {
-                        System.err.println("⚠ Advertencia: No se pudo crear el comando '" + nombre + "' con params=" + paramsProcesados + ". Se omite.");
-                    }
-                    
-                    i++; // Avanzar a la siguiente línea
-                }
-                
-                continue; // Continuar con el siguiente elemento del bucle principal
-            }
-    
-    
-            // ============================================================
-            // COMANDOS NORMALES (fuera de blocks)
-            // ============================================================
-    
-            if (linea.startsWith("-")) {
-    
-                if (ultimoNodoCreado == null) {
-                    i++;
-                    continue;
-                }
-    
-                String cmdLine = linea.substring(1).trim();
-                String[] partes = cmdLine.split(" ");
-                String nombre = partes[0];
-    
-                ArrayList<String> params = new ArrayList<>();
-                for (int j = 1; j < partes.length; j++)
-                    params.add(partes[j]);
-    
-                Comando c = Compiler.comando(nombre, params);
-                
-                // Verificar que el comando no sea null antes de agregarlo
-                if (c != null) {
-                    ultimoNodoCreado.comandos.add(c);
+                    System.out.println("✅ ComposedFigures creado con " + bufferComposed.size() + " figuras internas");
+                    this.lastBlockCreated = comp;
+                    return i + 1;
                 } else {
-                    System.err.println("⚠ Advertencia: No se pudo crear el comando '" + nombre + "'. Se omite.");
+                    System.err.println("⚠ Advertencia: El buffer de figuras compuestas está vacío");
+                    this.lastBlockCreated = null;
+                    return i + 1;
                 }
-    
-                i++;
-                continue;
             }
-    
-    
-            // ============================================================
-            // CREACIÓN DE FIGURAS
-            // ============================================================
-    
-            String[] partes = linea.split(" ");
+
+            if (lineaComposed.isEmpty()) { i++; continue; }
+
+            if (lineaComposed.startsWith("-")) {
+                if (ultimoInterno == null) {
+                    System.err.println("⚠ Línea de comando dentro de _Composed antes de cualquier figura: " + lineaComposed);
+                    i++; continue;
+                }
+
+                String cmdLine = lineaComposed.substring(1).trim();
+                String[] partesCmd = cmdLine.split(" ");
+                String nombreCmd = partesCmd[0];
+                ArrayList<String> paramsCmd = collectParams(partesCmd, 1);
+
+                // Nota: NO expandimos comas aquí. Algunos comandos (ej: color)
+                // esperan un único parámetro con comas ("R,G,B"). Se mantiene
+                // el formato original tal cual lo escribió el usuario.
+                Comando c = createCommandSafe(nombreCmd, paramsCmd);
+                if (c != null) {
+                    ultimoInterno.comandos.add(c);
+                    System.out.println("➕ Comando agregado a figura interna: " + nombreCmd + " -> " + c.getClass().getSimpleName());
+                }
+
+                i++; continue;
+            }
+
+            // definición de figura
+            String[] partes = lineaComposed.split(" ");
             String tipo = partes[0];
-    
-            ArrayList<String> params = new ArrayList<>();
-            for (int j = 1; j < partes.length; j++)
-                params.add(partes[j]);
-    
-            Forma forma = Compiler.forma(tipo, params);
-            AreaDeInfluencia area = new AreaDeInfluencia(forma);
-    
-            ArrayList<Comando> cmds = new ArrayList<>();
-            cmds.add(new com.mycompany.pixelkinesis.comandos.ComandoDibujar());
-    
-            FiguraGeometrica fig = new FiguraGeometrica(forma, area, cmds);
-            capa.agregarNodo(fig);
-    
-            ultimoNodoCreado = fig;
+            ArrayList<String> params = collectParams(partes, 1);
+            FiguraGeometrica fig = createFiguraFromParts(tipo, params);
+            if (fig != null) {
+                bufferComposed.add(fig);
+                ultimoInterno = fig;
+                System.out.println("➕ Figura agregada al buffer composed: " + tipo);
+            }
+
             i++;
         }
-    
-        panelDibujo.repaint();
-    }    
+
+        // reached EOF without _ComposedEnd
+        this.lastBlockCreated = null;
+        return i;
+    }
+
+    private int handleAnimate(String[] lineas, int startIndex, Nodo ultimoNodoCreado) {
+        System.out.println("🎬 Bloque -animate iniciado");
+        ArrayList<Comando> bufferAnimate = new ArrayList<>();
+
+        int i = startIndex + 1;
+        while (i < lineas.length) {
+            String lineaAnimate = lineas[i].trim();
+            if (lineaAnimate.equalsIgnoreCase("-animateEnd") || lineaAnimate.equalsIgnoreCase("-animate end")) {
+                System.out.println("🏁 Bloque -animateEnd detectado");
+                if (ultimoNodoCreado == null) {
+                    System.err.println("❌ Error: No hay nodo creado para agregar animaciones");
+                } else if (bufferAnimate.isEmpty()) {
+                    System.err.println("⚠ Advertencia: El buffer de animaciones está vacío");
+                } else {
+                    System.out.println("📦 Agregando " + bufferAnimate.size() + " comandos al nodo");
+                    ultimoNodoCreado.comandos.addAll(bufferAnimate);
+                    int exec = 0;
+                    for (Comando cmd : bufferAnimate) {
+                        System.out.println("🔍 Revisando comando: " + cmd.getClass().getSimpleName() + " (es Animate? " + (cmd instanceof Animate) + ")");
+                        if (cmd instanceof Animate) {
+                            System.out.println("🎬 Ejecutando animación: " + cmd.getClass().getSimpleName());
+                            cmd.ejecutar(ultimoNodoCreado, null);
+                            exec++;
+                        }
+                    }
+                    System.out.println("✅ Se ejecutaron " + exec + " animaciones de " + bufferAnimate.size() + " comandos totales");
+                }
+                return i + 1;
+            }
+
+            if (lineaAnimate.isEmpty()) { i++; continue; }
+            if (!lineaAnimate.startsWith("-")) { System.out.println("⚠ Línea ignorada en bloque animate (no empieza con -): " + lineaAnimate); i++; continue; }
+
+            String cmdLine = lineaAnimate.substring(1).trim();
+            String[] partes = cmdLine.split(" ");
+            String nombre = partes[0];
+            ArrayList<String> params = collectParams(partes, 1);
+
+            if (nombre.equalsIgnoreCase("mover")) {
+                System.out.println("🔄 Convirtiendo 'mover' a 'animate mover' dentro del bloque animate");
+                nombre = "animate";
+                params.add(0, "mover");
+            }
+
+            System.out.println("🔧 Procesando comando en bloque animate: nombre='" + nombre + "', params=" + params);
+            ArrayList<String> paramsProcesados = expandCommaParams(params);
+            Comando c = createCommandSafe(nombre, paramsProcesados);
+            if (c != null) { bufferAnimate.add(c); System.out.println("✅ Comando agregado al buffer: " + c.getClass().getSimpleName()); }
+
+            i++;
+        }
+
+        return i;
+    }
+
+    private void handleNormalCommand(Nodo target, String linea) {
+        String cmdLine = linea.substring(1).trim();
+        String[] partes = cmdLine.split(" ");
+        String nombre = partes[0];
+        ArrayList<String> params = collectParams(partes, 1);
+        Comando c = createCommandSafe(nombre, params);
+        if (c != null) target.comandos.add(c);
+        else System.err.println("⚠ Advertencia: No se pudo crear el comando '" + nombre + "'. Se omite.");
+    }
+
+    private ArrayList<String> collectParams(String[] partes, int from) {
+        ArrayList<String> params = new ArrayList<>();
+        for (int j = from; j < partes.length; j++) params.add(partes[j]);
+        return params;
+    }
+
+    private ArrayList<String> expandCommaParams(ArrayList<String> params) {
+        ArrayList<String> out = new ArrayList<>();
+        for (String param : params) {
+            if (param.contains(",")) {
+                String[] p = param.split(",");
+                for (String part : p) { String t = part.trim(); if (!t.isEmpty()) out.add(t); }
+            } else { out.add(param.trim()); }
+        }
+        return out;
+    }
+
+    private Comando createCommandSafe(String nombre, ArrayList<String> params) {
+        try { return Compiler.comando(nombre, params); }
+        catch (Exception ex) { System.err.println("⚠ No se pudo crear comando: " + ex.getMessage()); return null; }
+    }
+
+    private FiguraGeometrica createFiguraFromLine(String linea) {
+        String[] partes = linea.split(" ");
+        if (partes.length == 0) return null;
+        String tipo = partes[0];
+        ArrayList<String> params = collectParams(partes, 1);
+        return createFiguraFromParts(tipo, params);
+    }
+
+    private FiguraGeometrica createFiguraFromParts(String tipo, ArrayList<String> params) {
+        try {
+            Forma forma = Compiler.forma(tipo, params);
+
+            // Normalizar la forma para que su geometría sea relativa al (0,0)
+            // y almacenar la posición original en AreaDeInfluencia.
+            java.awt.Shape shape = forma.getShape();
+            java.awt.geom.Rectangle2D bounds = shape.getBounds2D();
+            int baseX = (int) Math.round(bounds.getX());
+            int baseY = (int) Math.round(bounds.getY());
+
+            // Trasladar la forma a origen (0,0)
+            java.awt.geom.AffineTransform at = java.awt.geom.AffineTransform.getTranslateInstance(-baseX, -baseY);
+            java.awt.Shape shifted = at.createTransformedShape(shape);
+            Forma nueva = new Forma(shifted);
+
+            AreaDeInfluencia area = new AreaDeInfluencia(nueva, new java.awt.Point(baseX, baseY));
+
+            ArrayList<Comando> cmds = new ArrayList<>();
+            cmds.add(new com.mycompany.pixelkinesis.comandos.ComandoDibujar());
+            return new FiguraGeometrica(nueva, area, cmds);
+        } catch (Exception ex) {
+            System.err.println("⚠ Error creando figura '" + tipo + "': " + ex.getMessage());
+            return null;
+        }
+    }
     
     // Método auxiliar para crear y añadir un nodo
     private void agregarNodo(String comandoCrear, ArrayList<String> paramsCrear, ArrayList<Comando> comandosNodo) {
