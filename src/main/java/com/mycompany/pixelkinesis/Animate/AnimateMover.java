@@ -1,19 +1,23 @@
 package com.mycompany.pixelkinesis.Animate;
 import java.awt.Point;
 import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
+import java.awt.Shape;
 import com.mycompany.pixelkinesis.Nodo;
+import com.mycompany.pixelkinesis.FiguraGeometrica;
 import com.mycompany.pixelkinesis.comandos.ComandoMover;
 import javax.swing.JPanel;
 import javax.swing.Timer;
+
 public class AnimateMover extends Animate {
 
     private final Point destino;
     private final JPanel panel;
-    private Timer timer;  // Guardar referencia al timer para evitar múltiples ejecuciones
-    private boolean ejecutado = false;  // Flag para ejecutar solo una vez
+    private Timer timer;
+    private boolean ejecutado = false;
 
     public AnimateMover(Point inicio, Point destino, int timeMs, int speed, JPanel panel) {
-        // inicio se calcula dinámicamente en ejecutar(), no se guarda
         this.destino = destino;
         this.timeStart = 0;
         this.timeEnd = timeMs;
@@ -23,7 +27,7 @@ public class AnimateMover extends Animate {
 
     @Override
     public void ejecutar(Nodo nodo, Graphics2D g) {
-        // Si ya se ejecutó, no hacer nada (evitar ejecuciones múltiples durante repaint)
+        // Si ya se ejecutó, no hacer nada
         if (ejecutado) {
             return;
         }
@@ -39,60 +43,43 @@ public class AnimateMover extends Animate {
             return;
         }
         
-        System.out.println("🎬 Iniciando animación: destino=(" + destino.x + "," + destino.y + "), tiempo=" + timeEnd + "ms, speed=" + speed);
+        System.out.println("🎬 Iniciando animación: destino=(" + destino.x + "," + destino.y + 
+            "), tiempo=" + timeEnd + "ms, speed=" + speed);
         
-        ejecutado = true;  // Marcar como ejecutado INMEDIATAMENTE para evitar ejecuciones múltiples
+        ejecutado = true;
 
-        // Obtener posición inicial de forma segura (SIEMPRE recalcular, no usar la variable de instancia)
-        Point posActual = nodo.area.getPosicion();
-        Point posicionInicial;
-        
-        if (posActual != null && (posActual.x != 0 || posActual.y != 0)) {
-            // Si hay una posición establecida y no es (0,0), usarla
-            posicionInicial = new Point(posActual);
-            System.out.println("📍 Posición inicial desde getPosicion(): (" + posicionInicial.x + "," + posicionInicial.y + ")");
-        } else if (nodo.area.forma != null && nodo.area.forma.shape != null) {
-            // Usar los bounds de la forma (la posición real donde se dibuja)
-            java.awt.Rectangle bounds = nodo.area.forma.shape.getBounds();
-            posicionInicial = new Point(bounds.x, bounds.y);
-            System.out.println("📍 Posición inicial desde bounds de forma: (" + posicionInicial.x + "," + posicionInicial.y + ")");
-        } else {
-            // Si no hay forma, usar (0, 0)
-            posicionInicial = new Point(0, 0);
-            System.out.println("📍 Posición inicial por defecto: (0, 0)");
-        }
-        
-        // Usar la posición inicial calculada (no la variable de instancia)
-        final Point inicioFinal = new Point(posicionInicial);
+        // Obtener posición inicial REAL del shape
+        Point posicionInicial = obtenerPosicionReal(nodo);
+        System.out.println("📍 Posición inicial: (" + posicionInicial.x + "," + posicionInicial.y + ")");
 
         int framesCalculados = (timeEnd / speed);
         final int frames = (framesCalculados <= 0) ? 1 : framesCalculados;
 
         final int[] i = {0};
 
-        // Crear el timer solo una vez
+        // Crear el timer
         timer = new Timer(speed, e -> {
-            // Verificar que el nodo y su área sigan siendo válidos
             if (nodo == null || nodo.area == null) {
                 System.err.println("❌ Error: nodo o área se volvieron null durante la animación");
                 ((Timer)e.getSource()).stop();
                 return;
             }
 
-            // Evitar división por cero cuando frames es 1
             double t = (frames > 1) ? (double) i[0] / (frames - 1) : 1.0;
 
-            int x = (int)(inicioFinal.x + (destino.x - inicioFinal.x) * t);
-            int y = (int)(inicioFinal.y + (destino.y - inicioFinal.y) * t);
+            int x = (int)(posicionInicial.x + (destino.x - posicionInicial.x) * t);
+            int y = (int)(posicionInicial.y + (destino.y - posicionInicial.y) * t);
 
-            // mover nodo
             try {
-                nodo.area.setPosicion(new Point(x, y));
-                if (i[0] % 10 == 0) {  // Log cada 10 frames para no saturar
+                // Actualizar TANTO el área como el shape
+                actualizarPosicion(nodo, x, y);
+                
+                if (i[0] % 10 == 0) {
                     System.out.println("📍 Frame " + i[0] + "/" + frames + ": posición=(" + x + "," + y + ")");
                 }
             } catch (Exception ex) {
                 System.err.println("❌ Error al establecer posición: " + ex.getMessage());
+                ex.printStackTrace();
                 ((Timer)e.getSource()).stop();
                 return;
             }
@@ -105,9 +92,8 @@ public class AnimateMover extends Animate {
                 ((Timer)e.getSource()).stop();
                 System.out.println("✅ Animación completada");
 
-                // aplicar movimiento final
                 try {
-                    // ComandoMover no usa Graphics2D directamente, así que null es seguro
+                    // Aplicar movimiento final para asegurar la posición exacta
                     new ComandoMover(destino).ejecutar(nodo, null);
                 } catch (Exception ex) {
                     System.err.println("❌ Error al aplicar movimiento final: " + ex.getMessage());
@@ -119,6 +105,57 @@ public class AnimateMover extends Animate {
 
         timer.start();
         System.out.println("⏱️ Timer iniciado: " + frames + " frames, delay=" + speed + "ms");
+    }
+    
+    /**
+     * Obtiene la posición REAL de un nodo (donde realmente se dibuja)
+     */
+    private Point obtenerPosicionReal(Nodo nodo) {
+        if (nodo instanceof FiguraGeometrica fig) {
+            if (fig.forma != null && fig.forma.shape != null) {
+                Rectangle2D bounds = fig.forma.shape.getBounds2D();
+                return new Point((int)bounds.getX(), (int)bounds.getY());
+            }
+        }
+        
+        // Fallback: usar area.getPosicion()
+        if (nodo.area != null && nodo.area.getPosicion() != null) {
+            return new Point(nodo.area.getPosicion().x, nodo.area.getPosicion().y);
+        }
+        
+        return new Point(0, 0);
+    }
+    
+    /**
+     * Actualiza la posición de un nodo, sincronizando tanto el área como el shape
+     */
+    private void actualizarPosicion(Nodo nodo, int x, int y) {
+        if (!(nodo instanceof FiguraGeometrica fig)) {
+            // Para nodos que no son figuras, solo actualizar area
+            nodo.area.setPosicion(new Point(x, y));
+            return;
+        }
+        
+        if (fig.forma == null || fig.forma.shape == null) {
+            nodo.area.setPosicion(new Point(x, y));
+            return;
+        }
+        
+        // Obtener la posición actual del shape
+        Rectangle2D boundsActual = fig.forma.shape.getBounds2D();
+        double offsetXActual = boundsActual.getX();
+        double offsetYActual = boundsActual.getY();
+        
+        // Calcular el desplazamiento necesario
+        double dx = x - offsetXActual;
+        double dy = y - offsetYActual;
+        
+        // Aplicar el desplazamiento al shape
+        AffineTransform at = AffineTransform.getTranslateInstance(dx, dy);
+        fig.forma.shape = at.createTransformedShape(fig.forma.shape);
+        
+        // Sincronizar area.posicion
+        nodo.area.setPosicion(new Point(x, y));
     }
 }
 
