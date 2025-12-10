@@ -2,17 +2,32 @@ package com.mycompany.pixelkinesis.UI;
 
 import javax.swing.*;
 import java.awt.*;
+// Necesario para abrir enlaces en el navegador:
+import java.net.URI;
+import java.awt.Desktop; 
+// Importaciones existentes
 import com.mycompany.pixelkinesis.*;
 import java.util.ArrayList;
 import com.mycompany.pixelkinesis.comandos.*;
 import com.mycompany.pixelkinesis.Compiler.*;
 import com.mycompany.pixelkinesis.ComposedFigures.*;
 import com.mycompany.pixelkinesis.Animate.*;
+import java.io.PrintStream; 
+import java.util.Collections;
+
 public class VentanaEditor extends JFrame {
 
     private PanelConsola panelConsola;
     public PanelDibujo panelDibujo;
     private Capa capa;
+    
+    private JMenuItem itemMaximizar;
+    private JMenu menuVer; 
+    private boolean isMaximized = false;
+
+    // Constante para el enlace de GitHub
+    private static final String GITHUB_LINK = "https://github.com/marquistallman/-Pixel-Kinesis/tree/main/src/main/java/com/mycompany/pixelkinesis";
+
     public VentanaEditor() {
 
         setTitle("PixelKinesis Editor");
@@ -22,16 +37,13 @@ public class VentanaEditor extends JFrame {
 
         setLayout(new BorderLayout());
 
-        // ===========================
-        // 1. BARRA SUPERIOR
-        // ===========================
         JMenuBar barra = new JMenuBar();
 
-        JMenu menuArchivo = new JMenu("Archivo");
-        JMenu menuEdicion = new JMenu("Edición");
-        JMenu menuVer = new JMenu("Ver");
-        JMenu menuComandos = new JMenu("Comandos");
-
+        JMenu menuArchivo = crearMenuArchivo();
+        JMenu menuEdicion = crearMenuEdicion();
+        menuVer = crearMenuVer();
+        JMenu menuComandos = crearMenuComandos();
+        
         barra.add(menuArchivo);
         barra.add(menuEdicion);
         barra.add(menuVer);
@@ -39,25 +51,215 @@ public class VentanaEditor extends JFrame {
 
         setJMenuBar(barra);
 
-        // ===========================
-        // 2. PANEL IZQUIERDO (console)
-        // ===========================
-        JButton runButton = new JButton("Run");
-        runButton.addActionListener(e -> ejecutarComandos());
-        add(runButton, BorderLayout.SOUTH);
         panelConsola = new PanelConsola();
         add(panelConsola, BorderLayout.WEST);
-
-        // ===========================
-        // 3. PANEL DERECHO (Dibujo)
-        // ===========================
+        
+        JButton runButton = panelConsola.getRunButton();
+        runButton.addActionListener(e -> ejecutarComandos());
+        
         panelDibujo = new PanelDibujo();
         capa = new Capa();
-        panelDibujo.setBackground(Color.WHITE);
         panelDibujo.setCapa(capa);
         add(panelDibujo, BorderLayout.CENTER);
+        
+        redirigirSalidaAUI();
     }
+    
+    private JMenu crearMenuArchivo() {
+        JMenu menuArchivo = new JMenu("Archivo");
+
+        JMenuItem itemNuevo = new JMenuItem("Nuevo (Limpiar todo)");
+        itemNuevo.addActionListener(e -> {
+            panelConsola.consolaEntrada.setText("");
+            panelConsola.consolaSalida.setText("");
+            capa.limpiar();
+            panelDibujo.repaint();
+            System.out.println("✅ Editor de comandos reiniciado.");
+        });
+        
+        JMenuItem itemExportar = new JMenuItem("Exportar Dibujo (PNG...)");
+        itemExportar.addActionListener(e -> {
+            JOptionPane.showMessageDialog(this, "Funcionalidad de exportar no implementada (WIP).", "Advertencia", JOptionPane.WARNING_MESSAGE);
+        });
+
+        menuArchivo.add(itemNuevo);
+        menuArchivo.addSeparator();
+        menuArchivo.add(itemExportar);
+        
+        return menuArchivo;
+    }
+    
+    private JMenu crearMenuEdicion() {
+        JMenu menuEdicion = new JMenu("Edición");
+
+        JMenuItem itemLimpiarEntrada = new JMenuItem("Limpiar Código de Entrada");
+        itemLimpiarEntrada.addActionListener(e -> {
+            panelConsola.consolaEntrada.setText("");
+            System.out.println("✅ Código de entrada limpiado.");
+        });
+        
+        JMenuItem itemLimpiarSalida = new JMenuItem("Limpiar Log de Salida");
+        itemLimpiarSalida.addActionListener(e -> {
+            panelConsola.consolaSalida.setText("");
+            System.out.println("✅ Log de salida limpiado.");
+        });
+
+        menuEdicion.add(itemLimpiarEntrada);
+        menuEdicion.add(itemLimpiarSalida);
+        
+        return menuEdicion;
+    }
+
+    private JMenu crearMenuVer() {
+        JMenu menuVer = new JMenu("Ver");
+        
+        itemMaximizar = new JMenuItem("Maximizar Área de Dibujo");
+        itemMaximizar.addActionListener(e -> alternarVistaDibujo());
+        
+        // --- INICIO: Nuevo elemento para GitHub ---
+        JMenuItem itemGitHub = new JMenuItem("Abrir Proyecto en GitHub");
+        itemGitHub.addActionListener(e -> abrirEnlaceGitHub());
+        // --- FIN: Nuevo elemento para GitHub ---
+
+        menuVer.add(itemMaximizar);
+        menuVer.addSeparator(); // Separador para organizar mejor el menú
+        menuVer.add(itemGitHub); 
+        
+        return menuVer;
+    }
+    
+    /**
+     * Intenta abrir el enlace de GitHub en el navegador web predeterminado del sistema.
+     */
+    private void abrirEnlaceGitHub() {
+        try {
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(new URI(GITHUB_LINK));
+                System.out.println("🌐 Abriendo enlace de GitHub: " + GITHUB_LINK);
+            } else {
+                System.err.println("❌ Error: Navegador no soportado en este sistema. Enlace: " + GITHUB_LINK);
+                JOptionPane.showMessageDialog(this, "No se pudo abrir el navegador. Copie el siguiente enlace:\n" + GITHUB_LINK, "Error de Navegación", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error al intentar abrir el enlace de GitHub: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error al abrir el enlace. Copie el siguiente enlace:\n" + GITHUB_LINK, "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void alternarVistaDibujo() {
+        if (!isMaximized) { 
+            remove(panelConsola);
+            itemMaximizar.setText("Restaurar Vista Normal");
+            menuVer.setText("Ver (MAXIMIZADO)");
+            isMaximized = true;
+            System.out.println("🖼️ Vista de dibujo maximizada.");
+        } else { 
+            add(panelConsola, BorderLayout.WEST); 
+            itemMaximizar.setText("Maximizar Área de Dibujo");
+            menuVer.setText("Ver");
+            isMaximized = false;
+            System.out.println("🖼️ Vista restaurada a la normalidad.");
+        }
+        revalidate();
+        repaint();
+    }
+    
+    private JMenu crearMenuComandos() {
+        JMenu menuComandos = new JMenu("Ayuda de Comandos (Guía)");
+        
+        JMenu menuFiguras = new JMenu("🖍️ Figuras Geométricas (Creación)");
+        
+        JMenuItem itemCuad = new JMenuItem("cuad: Cuadrado/Rectángulo");
+        itemCuad.addActionListener(e -> mostrarAyudaFigura("cuad", "cuad (pos_x, pos_y) (ancho, alto)", 
+                "Crea un rectángulo/cuadrado. La posición va primero, luego las dimensiones.\\nEjemplo: cuad 100,150 50,80"));
+        menuFiguras.add(itemCuad);
+
+        JMenuItem itemCirc = new JMenuItem("circ: Círculo/Elipse");
+        itemCirc.addActionListener(e -> mostrarAyudaFigura("circ", "circ (radio_x, radio_y) (pos_x, pos_y)", 
+                "Crea una elipse o un círculo (si radio_x = radio_y).\\nEjemplo: circ 40,40 200,200"));
+        menuFiguras.add(itemCirc);
+        
+        JMenuItem itemTri = new JMenuItem("tri: Triángulo");
+        itemTri.addActionListener(e -> mostrarAyudaFigura("tri", "tri (x1,y1) (x2,y2) (x3,y3)", 
+                "Crea un triángulo usando tres coordenadas absolutas.\\nEjemplo: tri 10,10 50,50 10,50"));
+        menuFiguras.add(itemTri);
+
+        JMenuItem itemComp = new JMenuItem("Bloque: _Composed");
+        itemComp.addActionListener(e -> mostrarAyudaFigura("_Composed", "_Composed ... _ComposedEnd", 
+                "Define una figura compuesta. Las figuras internas se agrupan y se mueven juntas.\\nEjemplo:\\n_Composed\\n  cuad 10,10 0,0\\n  circ 5,5 10,0\\n_ComposedEnd"));
+        menuFiguras.add(itemComp);
+        
+        menuComandos.add(menuFiguras);
+        menuComandos.addSeparator();
+        
+        JMenu menuModificadores = new JMenu("✨ Modificadores (-Comandos)");
+        
+        JMenuItem itemMover = new JMenuItem("-mover: Traslación");
+        itemMover.addActionListener(e -> mostrarAyudaComando("-mover", "-mover (offset_x, offset_y)", 
+                "Mueve la última figura creada una cantidad relativa (offset).\\nEjemplo: -mover 20,-10"));
+        menuModificadores.add(itemMover);
+        
+        JMenuItem itemRotar = new JMenuItem("-rotar: Rotación");
+        itemRotar.addActionListener(e -> mostrarAyudaComando("-rotar", "-rotar (grados)", 
+                "Rota la última figura creada alrededor de su centro.\\nEjemplo: -rotar 45"));
+        menuModificadores.add(itemRotar);
+        
+        JMenuItem itemEscalar = new JMenuItem("-escalar: Escalamiento");
+        itemEscalar.addActionListener(e -> mostrarAyudaComando("-escalar", "-escalar (factor_x, factor_y)", 
+                "Cambia el tamaño de la última figura creada.\\nEjemplo: -escalar 2,1.5 (Duplica el ancho, 1.5 veces el alto)"));
+        menuModificadores.add(itemEscalar);
+        
+        JMenuItem itemColor = new JMenuItem("-color: Color de relleno");
+        itemColor.addActionListener(e -> mostrarAyudaComando("-color", "-color (R,G,B)", 
+                "Establece el color de relleno usando valores RGB (0-255).\\nEjemplo: -color 255,0,0 (Rojo)"));
+        menuModificadores.add(itemColor);
+        
+        JMenuItem itemBorde = new JMenuItem("-borde: Color de borde");
+        itemBorde.addActionListener(e -> mostrarAyudaComando("-borde", "-borde (R,G,B) [grosor]", 
+                "Establece el color y opcionalmente el grosor del borde (línea).\\nEjemplo: -borde 0,0,0 2 (Borde negro de grosor 2)"));
+        menuModificadores.add(itemBorde);
+
+        JMenuItem itemAnim = new JMenuItem("-animate: Bloque de animación");
+        itemAnim.addActionListener(e -> mostrarAyudaComando("-animate", "-animate ... -animateEnd", 
+                "Define un bloque de comandos que deben ser animados a lo largo del tiempo. Contiene comandos especiales (animate mover, animate rotar).\\nEjemplo:\\n-animate\\n  animate mover 50,0 1000\\n-animateEnd"));
+        menuModificadores.add(itemAnim);
+
+        menuComandos.add(menuModificadores);
+        
+        return menuComandos;
+    }
+
+    private void mostrarAyudaFigura(String titulo, String sintaxis, String descripcion) {
+        String mensaje = "<html>"
+                + "<h2>" + titulo.toUpperCase() + "</h2>"
+                + "<p><strong>Sintaxis:</strong> <code>" + sintaxis + "</code></p>"
+                + "<p><strong>Descripción:</strong> " + descripcion.replace("\\n", "<br>") + "</p>"
+                + "</html>";
+
+        JOptionPane.showMessageDialog(this, mensaje, "Ayuda de Figura: " + titulo.toUpperCase(), JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void mostrarAyudaComando(String titulo, String sintaxis, String descripcion) {
+        String mensaje = "<html>"
+                + "<h2>" + titulo.toUpperCase() + "</h2>"
+                + "<p><strong>Sintaxis:</strong> <code>" + sintaxis + "</code></p>"
+                + "<p><strong>Descripción:</strong> " + descripcion.replace("\\n", "<br>") + "</p>"
+                + "</html>";
+
+        JOptionPane.showMessageDialog(this, mensaje, "Ayuda de Comando: " + titulo.toUpperCase(), JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    private void redirigirSalidaAUI() {
+        PrintStream psOut = new PrintStream(new CustomOutputStream(panelConsola.consolaSalida, Color.BLACK));
+        System.setOut(psOut);
+
+        PrintStream psErr = new PrintStream(new CustomOutputStream(panelConsola.consolaSalida, new Color(180, 0, 0))); 
+        System.setErr(psErr);
+    }
+
     private void ejecutarComandos() {
+        panelConsola.consolaSalida.setText(""); 
+        
         System.out.println("═══════════════════════════════════════");
         System.out.println("🚀 INICIANDO ejecutarComandos()");
         System.out.println("═══════════════════════════════════════");
@@ -101,7 +303,6 @@ public class VentanaEditor extends JFrame {
                 continue;
             }
 
-            // creación normal de figura
             FiguraGeometrica fig = createFiguraFromLine(linea);
             if (fig != null) {
                 capa.agregarNodo(fig);
@@ -113,8 +314,7 @@ public class VentanaEditor extends JFrame {
         panelDibujo.repaint();
     }    
 
-    // ------------------------------ HELPERS ------------------------------
-    private Nodo lastBlockCreated = null; // usado para comunicar el nodo creado por un bloque sin crear clases nuevas
+    private Nodo lastBlockCreated = null; 
 
     private int handleComposed(String[] lineas, int startIndex) {
         System.out.println("🎨 Bloque _Composed iniciado");
@@ -152,9 +352,6 @@ public class VentanaEditor extends JFrame {
                 String nombreCmd = partesCmd[0];
                 ArrayList<String> paramsCmd = collectParams(partesCmd, 1);
 
-                // Nota: NO expandimos comas aquí. Algunos comandos (ej: color)
-                // esperan un único parámetro con comas ("R,G,B"). Se mantiene
-                // el formato original tal cual lo escribió el usuario.
                 Comando c = createCommandSafe(nombreCmd, paramsCmd);
                 if (c != null) {
                     ultimoInterno.comandos.add(c);
@@ -164,7 +361,6 @@ public class VentanaEditor extends JFrame {
                 i++; continue;
             }
 
-            // definición de figura
             String[] partes = lineaComposed.split(" ");
             String tipo = partes[0];
             ArrayList<String> params = collectParams(partes, 1);
@@ -178,7 +374,6 @@ public class VentanaEditor extends JFrame {
             i++;
         }
 
-        // reached EOF without _ComposedEnd
         this.lastBlockCreated = null;
         return i;
     }
@@ -282,14 +477,11 @@ public class VentanaEditor extends JFrame {
         try {
             Forma forma = Compiler.forma(tipo, params);
 
-            // Normalizar la forma para que su geometría sea relativa al (0,0)
-            // y almacenar la posición original en AreaDeInfluencia.
             java.awt.Shape shape = forma.getShape();
             java.awt.geom.Rectangle2D bounds = shape.getBounds2D();
             int baseX = (int) Math.round(bounds.getX());
             int baseY = (int) Math.round(bounds.getY());
 
-            // Trasladar la forma a origen (0,0)
             java.awt.geom.AffineTransform at = java.awt.geom.AffineTransform.getTranslateInstance(-baseX, -baseY);
             java.awt.Shape shifted = at.createTransformedShape(shape);
             Forma nueva = new Forma(shifted);
@@ -305,7 +497,6 @@ public class VentanaEditor extends JFrame {
         }
     }
     
-    // Método auxiliar para crear y añadir un nodo
     private void agregarNodo(String comandoCrear, ArrayList<String> paramsCrear, ArrayList<Comando> comandosNodo) {
         Forma forma = Compiler.forma(comandoCrear, paramsCrear);
         AreaDeInfluencia area = new AreaDeInfluencia(forma);
@@ -313,4 +504,3 @@ public class VentanaEditor extends JFrame {
         capa.agregarNodo(nodo);
     }    
 }
-
