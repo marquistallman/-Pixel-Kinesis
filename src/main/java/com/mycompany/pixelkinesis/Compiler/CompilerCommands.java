@@ -3,6 +3,7 @@ package com.mycompany.pixelkinesis.Compiler;
 import java.awt.*;
 import java.util.ArrayList;
 import com.mycompany.pixelkinesis.comandos.*;
+import javax.swing.JColorChooser;
 public class CompilerCommands {
 
     public static Comando crearComando(String comandoInput, ArrayList<String> params) {
@@ -13,6 +14,13 @@ public class CompilerCommands {
                 return new ComandoDibujar();
 
             case "color":
+                if (params.isEmpty()) {
+                    Color colorSeleccionado = JColorChooser.showDialog(null, "Selecciona un color", Color.WHITE);
+                    if (colorSeleccionado == null) {
+                        throw new IllegalArgumentException("Selección de color cancelada");
+                    }
+                    return new ComandoCambiarColor(colorSeleccionado);
+                }
                 // params[0] = "R,G,B"  ó  "R G B A"
                 String[] parts = params.get(0).split(",");
 
