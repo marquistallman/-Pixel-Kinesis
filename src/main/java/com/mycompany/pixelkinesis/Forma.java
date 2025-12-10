@@ -6,9 +6,11 @@ import java.awt.geom.Path2D;   // opcional si quieres formas personalizadas
 import java.awt.geom.AffineTransform; // opcional para rotaciones/escala
 public class Forma {
     public Shape shape;
-
+    public Shape shapeOriginal; // ← NUEVO: guarda el shape sin transformar
+    
     public Forma(Shape shape) {
         this.shape = shape;
+        this.shapeOriginal = null; // Se inicializará cuando se aplique la primera transformación
     }
 
     public boolean contiene(double x, double y) {
