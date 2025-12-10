@@ -106,8 +106,9 @@ public class CompilerCommands {
                 case "animate":
                 // delega a CompilerAnimate (igual que tu diseño modular)
                 return CompilerAnimate.crearAnimate(params);
-
-
+                case "recortar":
+                // No requiere parámetros
+                return new ComandoRecortar();
             // Aquí puedes añadir todos los comandos nuevos que quieras
             // sin tocar la clase Compiler original.
 
